@@ -39,6 +39,18 @@ A serialized component field marked with `[AutofillOptional]` will be automatica
 
 Unlike `[Autofill]`, we do not display an error if no component could be found, as this component is understood to be optional. Any references to that component should be wrapped in nullity checks within your component logic.
 
+### Arrays and Lists
+Both `[Autofill]` and `[AutofillOptional]` support arrays and lists of component types. When used on an array or list field, the autofill system will attempt to find all matching components based on the specified search type, and populate the array/list accordingly.
+
+For example:
+```csharp
+[Autofill(AutofillType.Children)]
+[SerializeField] private Rigidbody[] childRigidbodies;
+
+[Autofill(AutofillType.Self)]
+[SerializeField] private List<Collider> selfColliders;
+```
+
 ### Additional parameters
 Both `[Autofill]` and `[AutofillOptional]` take a number of constructor parameters:
 

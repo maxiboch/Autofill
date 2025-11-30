@@ -117,63 +117,97 @@ namespace Autofill.Editor
                                                 
                                                 if (elementType != null && elementType.IsSubclassOf(typeof(Component)))
                                                 {
-                                                    for (int i = 0; i < serializedProperty.arraySize; i++)
+                                                    // Find all matching components
+                                                    Component[] allPossibleComponents = null;
+                                                    var targetGameObject = behaviour.gameObject;
+                                                    
+                                                    switch (autofill.Type)
                                                     {
-                                                        var element = serializedProperty.GetArrayElementAtIndex(i);
-                                                        AutofillUpdateResult result = UpdateProperty(
-                                                            element,
-                                                            elementType,
-                                                            autofill,
-                                                            force: true
-                                                        );
-
-                                                        if (result == AutofillUpdateResult.Updated)
+                                                        case AutofillType.Self:
+                                                            allPossibleComponents = targetGameObject.GetComponents(elementType);
+                                                            break;
+                                                        case AutofillType.Parent:
+                                                            if (targetGameObject.transform.parent != null)
+                                                            {
+                                                                allPossibleComponents = targetGameObject.transform.parent.GetComponentsInParent(elementType, true);
+                                                            }
+                                                            break;
+                                                        case AutofillType.SelfAndParent:
+                                                            allPossibleComponents = targetGameObject.GetComponentsInParent(elementType, true);
+                                                            break;
+                                                        case AutofillType.Children:
+                                                            allPossibleComponents = targetGameObject.GetComponentsInChildren(elementType, true)
+                                                                .Where(c => c.gameObject != targetGameObject)
+                                                                .ToArray();
+                                                            break;
+                                                        case AutofillType.SelfAndChildren:
+                                                            allPossibleComponents = targetGameObject.GetComponentsInChildren(elementType, true);
+                                                            break;
+                                                    }
+                                                    
+                                                    if (allPossibleComponents != null && allPossibleComponents.Length > 0)
+                                                    {
+                                                        // Resize the array to match the number of found components
+                                                        serializedProperty.arraySize = allPossibleComponents.Length;
+                                                        
+                                                        // Assign each component to the array
+                                                        for (int i = 0; i < allPossibleComponents.Length; i++)
                                                         {
-                                                            updatedAnyProperties = true;
+                                                            var element = serializedProperty.GetArrayElementAtIndex(i);
+                                                            if (element.objectReferenceValue != allPossibleComponents[i])
+                                                            {
+                                                                element.objectReferenceValue = allPossibleComponents[i];
+                                                                updatedAnyProperties = true;
+                                                            }
+                                                        }
+                                                        
+                                                        if (updatedAnyProperties)
+                                                        {
+                                                            serializedObject.ApplyModifiedProperties();
                                                             EditorUtility.SetDirty(serializedObject.targetObject);
                                                         }
+                                                    }
+                                                    else if (!autofill.IsOptional)
+                                                    {
+                                                        // No components found and it's not optional - show error
+                                                        var errorKey = GenerateErrorText(
+                                                            serializedProperty,
+                                                            fieldInfo,
+                                                            AutofillUpdateResult.Error_NoValidComponentFound,
+                                                            useRawResult: true);
 
-                                                        if (result.IsError())
+                                                        if (!IgnoredErrors.Contains(errorKey))
                                                         {
-                                                            var errorKey = GenerateErrorText(
-                                                                element,
+                                                            var readableError = GenerateErrorText(
+                                                                serializedProperty,
                                                                 fieldInfo,
-                                                                result,
-                                                                useRawResult: true);
+                                                                AutofillUpdateResult.Error_NoValidComponentFound,
+                                                                useRawResult: false);
 
-                                                            if (!IgnoredErrors.Contains(errorKey))
+                                                            var displayError = $"Error updating autofill: {readableError}";
+
+                                                            if (!SuppressDialogs && !SessionState.GetBool(DIALOGS_MUTED_KEY, false))
                                                             {
-                                                                var readableError = GenerateErrorText(
-                                                                    element,
-                                                                    fieldInfo,
-                                                                    result,
-                                                                    useRawResult: false);
+                                                                var response = EditorUtility.DisplayDialogComplex(
+                                                                    "Error updating autofilled fields",
+                                                                    $"{displayError}\n\n",
+                                                                    "Okay",
+                                                                    "Don't warn again for this prefab",
+                                                                    "Disable all warnings until restart" );
 
-                                                                var displayError = $"Error updating autofill: {readableError}";
-
-                                                                if (!SuppressDialogs && !SessionState.GetBool(DIALOGS_MUTED_KEY, false))
+                                                                switch (response)
                                                                 {
-                                                                    var response = EditorUtility.DisplayDialogComplex(
-                                                                        "Error updating autofilled fields",
-                                                                        $"{displayError}\n\n",
-                                                                        "Okay",
-                                                                        "Don't warn again for this prefab",
-                                                                        "Disable all warnings until restart" );
-
-                                                                    switch (response)
-                                                                    {
-                                                                        case 1:
-                                                                            IgnoreError(errorKey);
-                                                                            break;
-                                                                        case 2:
-                                                                            SessionState.SetBool(DIALOGS_MUTED_KEY, true);
-                                                                            break;
-                                                                    }
+                                                                    case 1:
+                                                                        IgnoreError(errorKey);
+                                                                        break;
+                                                                    case 2:
+                                                                        SessionState.SetBool(DIALOGS_MUTED_KEY, true);
+                                                                        break;
                                                                 }
-                                                                else
-                                                                {
-                                                                    Debug.LogError(displayError, serializedObject.targetObject);
-                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                Debug.LogError(displayError, serializedObject.targetObject);
                                                             }
                                                         }
                                                     }
