@@ -40,16 +40,27 @@ A serialized component field marked with `[AutofillOptional]` will be automatica
 Unlike `[Autofill]`, we do not display an error if no component could be found, as this component is understood to be optional. Any references to that component should be wrapped in nullity checks within your component logic.
 
 ### Arrays and Lists
-Both `[Autofill]` and `[AutofillOptional]` support arrays and lists of component types. When used on an array or list field, the autofill system will attempt to find all matching components based on the specified search type, and populate the array/list accordingly.
+Both `[Autofill]` and `[AutofillOptional]` support arrays and lists of component types. When used on an array or list field, the autofill system will:
+1. Find all matching components based on the specified search type
+2. Automatically resize the array/list to fit all found components
+3. Populate each element with the found components
 
 For example:
 ```csharp
+// Find all Rigidbody components in children and populate the array
 [Autofill(AutofillType.Children)]
 [SerializeField] private Rigidbody[] childRigidbodies;
 
+// Find all Collider components on the same GameObject
 [Autofill(AutofillType.Self)]
 [SerializeField] private List<Collider> selfColliders;
+
+// Optional: Won't show error if no AudioSources found
+[AutofillOptional(AutofillType.SelfAndChildren)]
+[SerializeField] private AudioSource[] audioSources;
 ```
+
+**Note:** When using `acceptFirstValidResult=true` with arrays, only the first matching component will be added to the array (array size will be 1).
 
 ### Additional parameters
 Both `[Autofill]` and `[AutofillOptional]` take a number of constructor parameters:

@@ -151,6 +151,12 @@ namespace Autofill.Editor
                                                     
                                                     if (allPossibleComponents != null && allPossibleComponents.Length > 0)
                                                     {
+                                                        // If acceptFirstValidResult is true, only take the first component
+                                                        if (autofill.AcceptFirstValidResult && allPossibleComponents.Length > 1)
+                                                        {
+                                                            allPossibleComponents = new Component[] { allPossibleComponents[0] };
+                                                        }
+                                                        
                                                         // Resize the array to match the number of found components
                                                         serializedProperty.arraySize = allPossibleComponents.Length;
                                                         
