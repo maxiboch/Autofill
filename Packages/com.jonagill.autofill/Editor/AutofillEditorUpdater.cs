@@ -131,6 +131,10 @@ namespace Autofill.Editor
                                                             {
                                                                 allPossibleComponents = targetGameObject.transform.parent.GetComponentsInParent(elementType, true);
                                                             }
+                                                            else
+                                                            {
+                                                                allPossibleComponents = new Component[0];
+                                                            }
                                                             break;
                                                         case AutofillType.SelfAndParent:
                                                             allPossibleComponents = targetGameObject.GetComponentsInParent(elementType, true);
