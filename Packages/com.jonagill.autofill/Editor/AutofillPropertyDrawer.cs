@@ -1,4 +1,6 @@
 ﻿using Autofill.Editor;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
@@ -16,6 +18,27 @@ namespace Autofill
 
         private float HelpBoxHeight => EditorGUIUtility.singleLineHeight + 15f;
         private const float HelpBoxSpacing = 3f;
+
+        /// <summary>
+        /// Helper method to extract the element type from an array or list field type.
+        /// Returns the original type if it's not an array or list.
+        /// </summary>
+        private Type GetElementType(Type fieldType)
+        {
+            // If the field is an array, extract the element type
+            if (fieldType.IsArray)
+            {
+                return fieldType.GetElementType();
+            }
+            // If the field is a List<T>, extract the generic argument type
+            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return fieldType.GetGenericArguments()[0];
+            }
+            
+            // Return the original type if it's not an array or list
+            return fieldType;
+        }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
@@ -54,7 +77,8 @@ namespace Autofill
                 // Don't update autofilled fields when the game is playing
                 if (!Application.isPlaying)
                 {
-                    var fieldType = fieldInfo.FieldType;
+                    var fieldType = GetElementType(fieldInfo.FieldType);
+                    
                     if (autofillAttribute != null)
                     {
                         result = AutofillEditorUpdater.UpdateProperty(property, fieldType, autofillAttribute);
@@ -97,7 +121,8 @@ namespace Autofill
             // Don't update autofilled fields when the game is playing
             if (!Application.isPlaying)
             {
-                var fieldType = fieldInfo.FieldType;
+                var fieldType = GetElementType(fieldInfo.FieldType);
+                
                 if (autofillAttribute != null)
                 {
                     result = AutofillEditorUpdater.UpdateProperty(property, fieldType, autofillAttribute);

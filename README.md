@@ -39,6 +39,29 @@ A serialized component field marked with `[AutofillOptional]` will be automatica
 
 Unlike `[Autofill]`, we do not display an error if no component could be found, as this component is understood to be optional. Any references to that component should be wrapped in nullity checks within your component logic.
 
+### Arrays and Lists
+Both `[Autofill]` and `[AutofillOptional]` support arrays and lists of component types. When used on an array or list field, the autofill system will:
+1. Find all matching components based on the specified search type
+2. Automatically resize the array/list to fit all found components
+3. Populate each element with the found components
+
+For example:
+```csharp
+// Find all Rigidbody components in children and populate the array
+[Autofill(AutofillType.Children)]
+[SerializeField] private Rigidbody[] childRigidbodies;
+
+// Find all Collider components on the same GameObject
+[Autofill(AutofillType.Self)]
+[SerializeField] private List<Collider> selfColliders;
+
+// Optional: Won't show error if no AudioSources found
+[AutofillOptional(AutofillType.SelfAndChildren)]
+[SerializeField] private AudioSource[] audioSources;
+```
+
+**Note:** When using `acceptFirstValidResult=true` with arrays, only the first matching component will be added to the array (array size will be 1).
+
 ### Additional parameters
 Both `[Autofill]` and `[AutofillOptional]` take a number of constructor parameters:
 
@@ -78,6 +101,3 @@ This dialog gives you three options:
 * **Don't warn again for this prefab:** Marks this error as expected and prevents additional dialogs for opening for this exact property on this exact prefab. This is tracked by adding a line to a `AutofillIgnoredErrors.txt` file in your `ProjectSettings` folder. This file can be committed into version control, which makes this option helpful for e.g. marking a missing Autofill reference as expected on a base prefab that will usually be dropped into a context where the reference can be resolved.
 
 Of course, if you expect that this reference will be missing on a lot of assets, can also use `[AutofillOptional]` to mark the missing reference as intentional, which will suppress the error dialog entirely.
-
-## Limitations
-* Autofill is not currently supported on serialized arrays or lists.
