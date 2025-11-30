@@ -1,4 +1,5 @@
 ﻿using Autofill.Editor;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
@@ -55,6 +56,16 @@ namespace Autofill
                 if (!Application.isPlaying)
                 {
                     var fieldType = fieldInfo.FieldType;
+                    // If the field is an array or list, extract the element type
+                    if (fieldType.IsArray)
+                    {
+                        fieldType = fieldType.GetElementType();
+                    }
+                    else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+                    {
+                        fieldType = fieldType.GetGenericArguments()[0];
+                    }
+                    
                     if (autofillAttribute != null)
                     {
                         result = AutofillEditorUpdater.UpdateProperty(property, fieldType, autofillAttribute);
@@ -98,6 +109,16 @@ namespace Autofill
             if (!Application.isPlaying)
             {
                 var fieldType = fieldInfo.FieldType;
+                // If the field is an array or list, extract the element type
+                if (fieldType.IsArray)
+                {
+                    fieldType = fieldType.GetElementType();
+                }
+                else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    fieldType = fieldType.GetGenericArguments()[0];
+                }
+                
                 if (autofillAttribute != null)
                 {
                     result = AutofillEditorUpdater.UpdateProperty(property, fieldType, autofillAttribute);

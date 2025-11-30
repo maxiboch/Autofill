@@ -78,6 +78,3 @@ This dialog gives you three options:
 * **Don't warn again for this prefab:** Marks this error as expected and prevents additional dialogs for opening for this exact property on this exact prefab. This is tracked by adding a line to a `AutofillIgnoredErrors.txt` file in your `ProjectSettings` folder. This file can be committed into version control, which makes this option helpful for e.g. marking a missing Autofill reference as expected on a base prefab that will usually be dropped into a context where the reference can be resolved.
 
 Of course, if you expect that this reference will be missing on a lot of assets, can also use `[AutofillOptional]` to mark the missing reference as intentional, which will suppress the error dialog entirely.
-
-## Limitations
-* Autofill is not currently supported on serialized arrays or lists.

@@ -86,20 +86,110 @@ namespace Autofill.Editor
                         do
                         {
                             enterChildren = true;
-                            if (serializedProperty.isArray)
-                            {
-                                // We don't support autofilling arrays, and iterating through very long arrays
-                                // (e.g. ProBuilder mesh vertex data) can cause the editor to hang
-                                // while it looks up FieldInfo for every array element
-                                enterChildren = false;
-                                continue;
-                            }
-
+                            
                             Type fieldType = null;
                             var fieldInfo = GetFieldInfoFromPropertyInternal(serializedProperty, out fieldType);
                             if (fieldInfo != null)
                             {
-                                if (fieldType.IsSubclassOf(typeof(Component)))
+                                // Check if this is an array or list field with autofill attributes
+                                var isArrayOrList = fieldType.IsArray || 
+                                                   (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>));
+                                
+                                if (isArrayOrList)
+                                {
+                                    var attributes = GetFieldAttributesInternal(fieldInfo);
+                                    if (attributes != null)
+                                    {
+                                        var autofillAttributes = attributes
+                                            .Select(a => a as AutofillAttribute)
+                                            .Where(a => a != null);
+
+                                        var autofill = autofillAttributes.FirstOrDefault();
+                                        if (autofill != null)
+                                        {
+                                            // Process array/list elements
+                                            if (serializedProperty.isArray && serializedProperty.propertyType != SerializedPropertyType.String)
+                                            {
+                                                // Get the element type
+                                                Type elementType = fieldType.IsArray 
+                                                    ? fieldType.GetElementType() 
+                                                    : fieldType.GetGenericArguments()[0];
+                                                
+                                                if (elementType != null && elementType.IsSubclassOf(typeof(Component)))
+                                                {
+                                                    for (int i = 0; i < serializedProperty.arraySize; i++)
+                                                    {
+                                                        var element = serializedProperty.GetArrayElementAtIndex(i);
+                                                        AutofillUpdateResult result = UpdateProperty(
+                                                            element,
+                                                            elementType,
+                                                            autofill,
+                                                            force: true
+                                                        );
+
+                                                        if (result == AutofillUpdateResult.Updated)
+                                                        {
+                                                            updatedAnyProperties = true;
+                                                            EditorUtility.SetDirty(serializedObject.targetObject);
+                                                        }
+
+                                                        if (result.IsError())
+                                                        {
+                                                            var errorKey = GenerateErrorText(
+                                                                element,
+                                                                fieldInfo,
+                                                                result,
+                                                                useRawResult: true);
+
+                                                            if (!IgnoredErrors.Contains(errorKey))
+                                                            {
+                                                                var readableError = GenerateErrorText(
+                                                                    element,
+                                                                    fieldInfo,
+                                                                    result,
+                                                                    useRawResult: false);
+
+                                                                var displayError = $"Error updating autofill: {readableError}";
+
+                                                                if (!SuppressDialogs && !SessionState.GetBool(DIALOGS_MUTED_KEY, false))
+                                                                {
+                                                                    var response = EditorUtility.DisplayDialogComplex(
+                                                                        "Error updating autofilled fields",
+                                                                        $"{displayError}\n\n",
+                                                                        "Okay",
+                                                                        "Don't warn again for this prefab",
+                                                                        "Disable all warnings until restart" );
+
+                                                                    switch (response)
+                                                                    {
+                                                                        case 1:
+                                                                            IgnoreError(errorKey);
+                                                                            break;
+                                                                        case 2:
+                                                                            SessionState.SetBool(DIALOGS_MUTED_KEY, true);
+                                                                            break;
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    Debug.LogError(displayError, serializedObject.targetObject);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            // Don't enter children for arrays since we already processed them
+                                            enterChildren = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Skip arrays without autofill attributes to avoid hanging on large arrays
+                                        enterChildren = false;
+                                    }
+                                }
+                                else if (fieldType.IsSubclassOf(typeof(Component)))
                                 {
                                     var attributes = GetFieldAttributesInternal(fieldInfo);
                                     if (attributes != null)
@@ -197,14 +287,6 @@ namespace Autofill.Editor
             AutofillAttribute autofillAttribute,
             bool force = false)
         {
-            if (property.isArray || propertyType.IsArray)
-            {
-                // Attributes on serialized arrays will run on each individual array element, rather than
-                // the array itself. It's probably possible to hack around this and autofill arrays somehow,
-                // but for now we won't try to autofill arrays at all
-                return AutofillUpdateResult.Error_PropertyIsArray;
-            }
-
             if (!propertyType.IsSubclassOf(typeof(Component)))
             {
                 // Only component types can be autofilled
