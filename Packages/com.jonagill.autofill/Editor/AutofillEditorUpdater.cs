@@ -133,7 +133,7 @@ namespace Autofill.Editor
                                                             }
                                                             else
                                                             {
-                                                                allPossibleComponents = new Component[0];
+                                                                allPossibleComponents = System.Array.Empty<Component>();
                                                             }
                                                             break;
                                                         case AutofillType.SelfAndParent:
